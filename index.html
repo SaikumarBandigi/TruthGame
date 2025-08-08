@@ -2,12 +2,19 @@
 <html lang="en">
 
 <head>
+
     <meta charset="UTF-8">
     <title>Spin the Wheel: The Wheel of Friends</title>
     <link rel="icon" href="/images/spin.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <meta property="og:title" content="The Wheel of Fate" />
+    <meta property="og:description" content="Spin the wheel to see who destiny chooses!" />
+<meta property="og:image" content="https://my-wheel-app.netlify.app/images/spin.png" />
+    <meta property="og:url" content="https://your-netlify-site.netlify.app/" />
+    <meta property="og:type" content="website" />
+
     <style>
         * {
             margin: 0;
@@ -107,16 +114,17 @@
 </head>
 
 <body>
-    <h1>🎯 The Wheel of Fate</h1>
+        <h1>🎯 The Wheel of Fate</h1>
 
-    <div id="spin_the_wheel">
-        <canvas id="wheel" width="500" height="500"></canvas>
-        <div id="spin">SPIN</div>
-    </div>
+        <div id="spin_the_wheel">
+                <canvas id="wheel" width="500" height="500"></canvas>
+                <div id="spin">SPIN</div>
+            </div>
 
-    <div id="result"></div>
+        <div id="result"></div>
+       
     <script>
-       const sectors = [
+        const sectors = [
             { color: "#800020", text: "#fff", label: "Sonu" }, // Deep Burgundy
             { color: "#36454F", text: "#fff", label: "Mouni" }, // Charcoal Grey
             { color: "#228B22", text: "#fff", label: "Shyam" }, // Forest Green
