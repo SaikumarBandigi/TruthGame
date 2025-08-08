@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Spin the Wheel: The Wheel of Friends</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: #1a1a1a;
+            color: #f0f0f0;
+            font-family: 'Poppins', sans-serif;
+            text-align: center;
+            overflow: hidden;
+        }
+
+        h1 {
+            font-size: 3em;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+            text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5);
+            margin-bottom: 20px;
+        }
+
+        #spin_the_wheel {
+            display: inline-block;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        #wheel {
+            display: block;
+            border: 8px solid #555;
+            border-radius: 50%;
+            background: #2c2c2c;
+            box-shadow: 0 0 50px rgba(255, 255, 255, 0.1);
+        }
+
+        #spin {
+            font-size: 1.5em;
+            font-weight: 700;
+            user-select: none;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 30%;
+            height: 30%;
+            margin: -15%;
+            background: linear-gradient(45deg, #ff5722, #f53a1a);
+            color: #fff;
+            box-shadow:
+                0 0 0 8px #fff,
+                0 5px 15px rgba(255, 87, 34, 0.4);
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        #spin:hover {
+            transform: scale(1.05);
+            box-shadow:
+                0 0 0 8px #fff,
+                0 8px 25px rgba(255, 87, 34, 0.6);
+        }
+
+        #spin::after {
+            content: "";
+            position: absolute;
+            top: -12px;
+            border: 8px solid transparent;
+            border-bottom-color: #fff;
+            border-top: none;
+        }
+
+        #result {
+            font: bold 2em 'Poppins', sans-serif;
+            letter-spacing: 3px;
+            color: #ffeb3b;
+            text-shadow: 0 0 10px #ffeb3b, 0 10 20px #ffeb3b;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+            margin-top: 20px;
+        }
+
+        #result.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🎯 The Wheel of Fate</h1>
+
+    <div id="spin_the_wheel">
+        <canvas id="wheel" width="500" height="500"></canvas>
+        <div id="spin">SPIN</div>
+    </div>
+
+    <div id="result"></div>
+    <script>
+       const sectors = [
+            { color: "#800020", text: "#fff", label: "Sonu" }, // Deep Burgundy
+            { color: "#36454F", text: "#fff", label: "Mouni" }, // Charcoal Grey
+            { color: "#228B22", text: "#fff", label: "Shyam" }, // Forest Green
+            { color: "#000080", text: "#fff", label: "Sampath" }, // Navy Blue
+        ];
+
+        const events = {
+            listeners: {},
+            addListener: function (eventName, fn) {
+                this.listeners[eventName] = this.listeners[eventName] || [];
+                this.listeners[eventName].push(fn);
+            },
+            fire: function (eventName, ...args) {
+                if (this.listeners[eventName]) {
+                    for (let fn of this.listeners[eventName]) {
+                        fn(...args);
+                    }
+                }
+            },
+        };
+
+        const rand = (m, M) => Math.random() * (M - m) + m;
+        const tot = sectors.length;
+        const spinEl = document.querySelector("#spin");
+        const ctx = document.querySelector("#wheel").getContext("2d");
+        const resultEl = document.querySelector("#result");
+
+        const dia = ctx.canvas.width;
+        const rad = dia / 2;
+        const PI = Math.PI;
+        const TAU = 2 * PI;
+        const arc = TAU / sectors.length;
+
+        const friction = 0.991;
+        let angVel = 0;
+        let ang = 0;
+        let spinButtonClicked = false;
+
+        const getIndex = () => Math.floor(tot - (ang / TAU) * tot) % tot;
+
+        function drawSector(sector, i) {
+            const ang = arc * i;
+            ctx.save();
+
+            ctx.beginPath();
+            ctx.fillStyle = sector.color;
+            ctx.moveTo(rad, rad);
+            ctx.arc(rad, rad, rad, ang, ang + arc);
+            ctx.lineTo(rad, rad);
+            ctx.fill();
+
+            ctx.translate(rad, rad);
+            ctx.rotate(ang + arc / 2);
+            ctx.textAlign = "right";
+            ctx.fillStyle = sector.text;
+            ctx.font = "bold 20px 'Poppins', sans-serif";
+            ctx.fillText(sector.label, rad - 5, 5);
+            ctx.restore();
+        }
+
+        function rotate() {
+            const sector = sectors[getIndex()];
+            ctx.canvas.style.transform = `rotate(${ang - PI / 2}rad)`;
+
+            if (angVel > 0) {
+                spinEl.textContent = sector.label;
+                spinEl.style.background = sector.color;
+                spinEl.style.color = sector.text;
+            }
+        }
+
+        function frame() {
+            if (!angVel && spinButtonClicked) {
+                const finalSector = sectors[getIndex()];
+                events.fire("spinEnd", finalSector);
+                spinButtonClicked = false;
+                return;
+            }
+
+            angVel *= friction;
+            if (angVel < 0.002) {
+                angVel = 0;
+            }
+            ang += angVel;
+            ang %= TAU;
+            rotate();
+        }
+
+        function engine() {
+            frame();
+            requestAnimationFrame(engine);
+        }
+
+        function init() {
+            sectors.forEach(drawSector);
+            rotate();
+            engine();
+            spinEl.addEventListener("click", () => {
+                if (!angVel) {
+                    angVel = rand(0.25, 0.45);
+                    spinButtonClicked = true;
+                    resultEl.classList.remove('show');
+                    resultEl.textContent = '';
+                }
+            });
+        }
+
+        init();
+
+        events.addListener("spinEnd", (sector) => {
+            resultEl.textContent = `🎉 The chosen one is ${sector.label}! 🎉`;
+            resultEl.classList.add('show');
+            spinEl.textContent = "SPIN";
+            spinEl.style.background = sector.color; // Changes background to winner's color
+            spinEl.style.color = sector.text; // Changes text color to winner's text color
+        });
+    </script>
+</body>
+
+</html>
