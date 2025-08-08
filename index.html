@@ -176,6 +176,7 @@
 
         let angVel = 0;
         let ang = 0;
+        let isSpinning = false; // Add a state variable to prevent multiple spins
 
         const getIndex = () => Math.floor(tot - (ang / TAU) * tot) % tot;
 
@@ -207,34 +208,38 @@
             }
         }
 
+        // This function starts the wheel animation and handles deceleration
         function startSpin(finalWinner) {
+            if (isSpinning) return; // Prevent new spins while one is in progress
+            isSpinning = true;
+
             resultEl.classList.remove('show');
             resultEl.textContent = '';
 
             const winnerIndex = sectors.findIndex(s => s.label === finalWinner);
             if (winnerIndex === -1) {
                 console.error("Winner not found in sectors array.");
+                isSpinning = false;
                 return;
             }
 
-            // Set the target angle to land on the winner's sector
+            // Calculate the target angle for the wheel
             const finalAng = TAU - (arc * winnerIndex) - arc / 2;
             const extraSpins = rand(10, 15) * TAU; // 10-15 extra full rotations
             const targetAng = finalAng + extraSpins;
 
-            // Set a high initial velocity and start the animation loop
             angVel = rand(0.25, 0.45);
+            ang = 0;
 
             function animateSpin() {
                 angVel *= 0.991; // Apply friction
                 ang += angVel;
-
-                // Check if the wheel is slowing down and approaching the target
                 if (angVel < 0.002) {
                     ang = targetAng % TAU; // Snap to the final position for perfect alignment
                     rotate();
                     const finalSector = sectors[getIndex()];
                     events.fire("spinEnd", finalSector);
+                    isSpinning = false;
                     return;
                 }
 
@@ -250,7 +255,7 @@
 
             // When the spin button is clicked, write the winner to Firebase
             spinEl.addEventListener("click", () => {
-                if (angVel === 0) {
+                if (!isSpinning) { // Only allow a spin if not already spinning
                     spinEl.textContent = "SPINNING...";
                     const randomWinner = sectors[Math.floor(Math.random() * sectors.length)].label;
                     set(gameStateRef, { winner: randomWinner })
@@ -267,10 +272,6 @@
             if (data && data.winner) {
                 startSpin(data.winner);
             }
-        }, {
-            // This is an option to only listen for the first value once, but for a game,
-            // we want to listen for all subsequent changes.
-            // onValue(gameStateRef, (snapshot) => { ... }, { onlyOnce: true });
         });
 
         init();
