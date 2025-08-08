@@ -121,7 +121,7 @@
     <script type="module">
         // Import Firebase modules using the modern v9+ syntax
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-        import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+        import { getDatabase, ref, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
         // Your web app's Firebase configuration
         const firebaseConfig = {
@@ -234,6 +234,7 @@
             function animateSpin() {
                 angVel *= 0.991; // Apply friction
                 ang += angVel;
+
                 if (angVel < 0.002) {
                     ang = targetAng % TAU; // Snap to the final position for perfect alignment
                     rotate();
@@ -253,14 +254,35 @@
             sectors.forEach(drawSector);
             rotate();
 
-            // When the spin button is clicked, write the winner to Firebase
+            // When the spin button is clicked, start a transaction
             spinEl.addEventListener("click", () => {
-                if (!isSpinning) { // Only allow a spin if not already spinning
+                if (!isSpinning) {
                     spinEl.textContent = "SPINNING...";
-                    const randomWinner = sectors[Math.floor(Math.random() * sectors.length)].label;
-                    set(gameStateRef, { winner: randomWinner })
+
+                    // Use a transaction to safely update the database
+                    runTransaction(gameStateRef, (currentData) => {
+                        // If the database is currently null or not spinning, set a new winner
+                        if (currentData === null || !currentData.isSpinning) {
+                            const randomWinner = sectors[Math.floor(Math.random() * sectors.length)].label;
+                            return {
+                                winner: randomWinner,
+                                isSpinning: true,
+                                spinTimestamp: Date.now()
+                            };
+                        } else {
+                            // If a spin is already in progress, abort the transaction
+                            return undefined;
+                        }
+                    })
+                        .then((result) => {
+                            if (!result.committed) {
+                                console.log("Spin already in progress, aborting.");
+                                spinEl.textContent = "SPIN";
+                            }
+                        })
                         .catch(error => {
-                            console.error("Error writing to Firebase:", error);
+                            console.error("Error during transaction:", error);
+                            spinEl.textContent = "SPIN";
                         });
                 }
             });
@@ -282,6 +304,14 @@
             spinEl.textContent = "SPIN";
             spinEl.style.background = sector.color;
             spinEl.style.color = sector.text;
+
+            // After the spin, set the isSpinning flag back to false in the database
+            runTransaction(gameStateRef, (currentData) => {
+                if (currentData !== null) {
+                    currentData.isSpinning = false;
+                }
+                return currentData;
+            });
         });
     </script>
 </body>
