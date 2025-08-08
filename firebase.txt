@@ -1,0 +1,21 @@
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyATBz4evBmC02HEjKyFvrwg_rD8Ep-2SgY",
+  authDomain: "truthgame-eff96.firebaseapp.com",
+  projectId: "truthgame-eff96",
+  storageBucket: "truthgame-eff96.firebasestorage.app",
+  messagingSenderId: "559726354658",
+  appId: "1:559726354658:web:a5d7a2835777d8b5e6febb",
+  measurementId: "G-9M5KPG6HHS"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);

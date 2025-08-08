@@ -8,6 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <!-- Your existing styles -->
     <style>
         * {
             margin: 0;
@@ -115,12 +117,34 @@
     </div>
 
     <div id="result"></div>
-    <script>
-       const sectors = [
-            { color: "#800020", text: "#fff", label: "Sonu" }, // Deep Burgundy
-            { color: "#36454F", text: "#fff", label: "Mouni" }, // Charcoal Grey
-            { color: "#228B22", text: "#fff", label: "Shyam" }, // Forest Green
-            { color: "#000080", text: "#fff", label: "Sampath" }, // Navy Blue
+
+    <script type="module">
+        // Import Firebase modules using the modern v9+ syntax
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+        import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyATBz4evBmC02HEjKyFvrwg_rD8Ep-2SgY",
+            authDomain: "truthgame-eff96.firebaseapp.com",
+            projectId: "truthgame-eff96",
+            storageBucket: "truthgame-eff96.firebasestorage.app",
+            messagingSenderId: "559726354658",
+            appId: "1:559726354658:web:a5d7a2835777d8b5e6febb",
+            measurementId: "G-9M5KPG6HHS"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+        const gameStateRef = ref(database, 'gameState');
+
+        // Game logic starts here
+        const sectors = [
+            { color: "#800020", text: "#fff", label: "Sonu" },
+            { color: "#36454F", text: "#fff", label: "Mouni" },
+            { color: "#228B22", text: "#fff", label: "Shyam" },
+            { color: "#000080", text: "#fff", label: "Sampath" },
         ];
 
         const events = {
@@ -150,24 +174,20 @@
         const TAU = 2 * PI;
         const arc = TAU / sectors.length;
 
-        const friction = 0.991;
         let angVel = 0;
         let ang = 0;
-        let spinButtonClicked = false;
 
         const getIndex = () => Math.floor(tot - (ang / TAU) * tot) % tot;
 
         function drawSector(sector, i) {
             const ang = arc * i;
             ctx.save();
-
             ctx.beginPath();
             ctx.fillStyle = sector.color;
             ctx.moveTo(rad, rad);
             ctx.arc(rad, rad, rad, ang, ang + arc);
             ctx.lineTo(rad, rad);
             ctx.fill();
-
             ctx.translate(rad, rad);
             ctx.rotate(ang + arc / 2);
             ctx.textAlign = "right";
@@ -180,7 +200,6 @@
         function rotate() {
             const sector = sectors[getIndex()];
             ctx.canvas.style.transform = `rotate(${ang - PI / 2}rad)`;
-
             if (angVel > 0) {
                 spinEl.textContent = sector.label;
                 spinEl.style.background = sector.color;
@@ -188,41 +207,71 @@
             }
         }
 
-        function frame() {
-            if (!angVel && spinButtonClicked) {
-                const finalSector = sectors[getIndex()];
-                events.fire("spinEnd", finalSector);
-                spinButtonClicked = false;
+        function startSpin(finalWinner) {
+            resultEl.classList.remove('show');
+            resultEl.textContent = '';
+
+            const winnerIndex = sectors.findIndex(s => s.label === finalWinner);
+            if (winnerIndex === -1) {
+                console.error("Winner not found in sectors array.");
                 return;
             }
 
-            angVel *= friction;
-            if (angVel < 0.002) {
-                angVel = 0;
-            }
-            ang += angVel;
-            ang %= TAU;
-            rotate();
-        }
+            // Set the target angle to land on the winner's sector
+            const finalAng = TAU - (arc * winnerIndex) - arc / 2;
+            const extraSpins = rand(10, 15) * TAU; // 10-15 extra full rotations
+            const targetAng = finalAng + extraSpins;
 
-        function engine() {
-            frame();
-            requestAnimationFrame(engine);
+            // Set a high initial velocity and start the animation loop
+            angVel = rand(0.25, 0.45);
+
+            function animateSpin() {
+                angVel *= 0.991; // Apply friction
+                ang += angVel;
+
+                // Check if the wheel is slowing down and approaching the target
+                if (angVel < 0.002) {
+                    ang = targetAng % TAU; // Snap to the final position for perfect alignment
+                    rotate();
+                    const finalSector = sectors[getIndex()];
+                    events.fire("spinEnd", finalSector);
+                    return;
+                }
+
+                rotate();
+                requestAnimationFrame(animateSpin);
+            }
+            animateSpin();
         }
 
         function init() {
             sectors.forEach(drawSector);
             rotate();
-            engine();
+
+            // When the spin button is clicked, write the winner to Firebase
             spinEl.addEventListener("click", () => {
-                if (!angVel) {
-                    angVel = rand(0.25, 0.45);
-                    spinButtonClicked = true;
-                    resultEl.classList.remove('show');
-                    resultEl.textContent = '';
+                if (angVel === 0) {
+                    spinEl.textContent = "SPINNING...";
+                    const randomWinner = sectors[Math.floor(Math.random() * sectors.length)].label;
+                    set(gameStateRef, { winner: randomWinner })
+                        .catch(error => {
+                            console.error("Error writing to Firebase:", error);
+                        });
                 }
             });
         }
+
+        // Listen for real-time updates from Firebase
+        onValue(gameStateRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data && data.winner) {
+                startSpin(data.winner);
+            }
+        }, {
+            // This is an option to only listen for the first value once, but for a game,
+            // we want to listen for all subsequent changes.
+            // onValue(gameStateRef, (snapshot) => { ... }, { onlyOnce: true });
+        });
 
         init();
 
@@ -230,8 +279,8 @@
             resultEl.textContent = `🎉 The chosen one is ${sector.label}! 🎉`;
             resultEl.classList.add('show');
             spinEl.textContent = "SPIN";
-            spinEl.style.background = sector.color; // Changes background to winner's color
-            spinEl.style.color = sector.text; // Changes text color to winner's text color
+            spinEl.style.background = sector.color;
+            spinEl.style.color = sector.text;
         });
     </script>
 </body>
